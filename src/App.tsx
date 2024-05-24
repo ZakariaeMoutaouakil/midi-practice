@@ -40,6 +40,12 @@ const App = () => {
         g.lineTo(dimensions.width - 50, y); // Draw line to x: (width - 50), y: y
     }, [dimensions.width]);
 
+    const drawVerticalLine = useCallback((g: PixiGraphics, x: number) => {
+        g.lineStyle(2, 0x000000, 1); // Line width of 2 and black color
+        g.moveTo(x, 50); // Start at x: x, y: 50
+        g.lineTo(x, dimensions.height + 50); // Draw line to x: x, y: (height - 50)
+    }, [dimensions.height]);
+
     const drawEllipse = useCallback((g: PixiGraphics, x: number, y: number) => {
         g.lineStyle(3, 0x000000, 1); // Line width of 3 and black color
         g.drawEllipse(x, y, 40, 22); // Draw ellipse with width 40 and height 22
@@ -61,7 +67,12 @@ const App = () => {
         drawHorizontalLine(g, 500); // Eighth line at y: 500
         drawHorizontalLine(g, 550); // Ninth line at y: 550
         drawHorizontalLine(g, 600); // Tenth line at y: 600
-    }, [drawHorizontalLine, drawEllipse, ellipseX]);
+
+        // Draw two vertical lines at the center
+        const offset = 100
+        drawVerticalLine(g, dimensions.width / 2 - offset);
+        drawVerticalLine(g, dimensions.width / 2 + offset);
+    }, [drawHorizontalLine, drawVerticalLine, drawEllipse, ellipseX, dimensions.width]);
 
     return (
         <Stage width={dimensions.width} height={dimensions.height} options={{ backgroundColor: 0xffffff }}>

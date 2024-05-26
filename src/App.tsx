@@ -1,16 +1,17 @@
-// src/App.tsx
 import React, { useCallback, useEffect, useState } from 'react';
 import { Graphics, Stage } from "@pixi/react";
 import { Graphics as PixiGraphics } from "@pixi/graphics";
+import { useEllipseEvents } from './context/ellipsecontext';
 
 interface Ellipse {
     x: number;
     y: number;
 }
 
-const MAX_ELLIPSES = 4;
+const MAX_ELLIPSES = 10;
 
 const App = () => {
+    const { addEvent } = useEllipseEvents();
     const [dimensions, setDimensions] = useState({
         width: window.innerWidth,
         height: window.innerHeight
@@ -18,8 +19,8 @@ const App = () => {
 
     const [topEllipses, setTopEllipses] = useState<Ellipse[]>([]);
     const [bottomEllipses, setBottomEllipses] = useState<Ellipse[]>([]);
-
     const [spawnCounter, setSpawnCounter] = useState(0);
+    const [ellipsesInBounds, setEllipsesInBounds] = useState<Set<number>>(new Set());
 
     useEffect(() => {
         const handleResize = () => {
@@ -47,7 +48,6 @@ const App = () => {
                 return [...prevEllipses, newEllipse];
             });
             setSpawnCounter(prevCounter => prevCounter + 1);
-            console.log(`Spawn counter: ${spawnCounter}`);
         };
 
         const moveEllipses = (setEllipses: React.Dispatch<React.SetStateAction<Ellipse[]>>) => {
@@ -59,12 +59,12 @@ const App = () => {
             );
         };
 
-        const spawnTopIntervalId = setInterval(() => spawnEllipse(setTopEllipses, topPlaces), 4000); // Spawn ellipses every 2 seconds
-        const spawnBottomIntervalId = setInterval(() => spawnEllipse(setBottomEllipses, bottomPlaces), 4000); // Spawn ellipses every 2 seconds
+        const spawnTopIntervalId = setInterval(() => spawnEllipse(setTopEllipses, topPlaces), 4000);
+        const spawnBottomIntervalId = setInterval(() => spawnEllipse(setBottomEllipses, bottomPlaces), 4000);
         const moveIntervalId = setInterval(() => {
             moveEllipses(setTopEllipses);
             moveEllipses(setBottomEllipses)
-        }, 10); // Move ellipses every 16ms (approximately 60fps)
+        }, 10);
 
         return () => {
             clearInterval(spawnTopIntervalId);
@@ -78,30 +78,46 @@ const App = () => {
         const leftLineX = dimensions.width / 2 - offset;
         const rightLineX = dimensions.width / 2 + offset;
 
-        const ellipsesInBounds = [
+        const currentEllipsesInBounds = new Set<number>();
+
+        const allEllipses = [
             ...topEllipses,
             ...bottomEllipses
-        ].filter(ellipse => ellipse.x > leftLineX && ellipse.x < rightLineX);
+        ];
 
-        console.log(ellipsesInBounds);
-        ellipsesInBounds.forEach(ellipse => console.log(ellipse.x));
-    }, [topEllipses, bottomEllipses, dimensions.width]);
+        allEllipses.forEach(ellipse => {
+            if (ellipse.x > leftLineX && ellipse.x < rightLineX) {
+                currentEllipsesInBounds.add(ellipse.y);
+                if (!ellipsesInBounds.has(ellipse.y)) {
+                    addEvent({ y: ellipse.y, entered: true });
+                }
+            }
+        });
+
+        ellipsesInBounds.forEach(y => {
+            if (!currentEllipsesInBounds.has(y)) {
+                addEvent({ y, entered: false });
+            }
+        });
+
+        setEllipsesInBounds(currentEllipsesInBounds);
+    }, [topEllipses, bottomEllipses, dimensions.width, addEvent, ellipsesInBounds]);
 
     const drawHorizontalLine = useCallback((g: PixiGraphics, y: number, alpha = 1) => {
-        g.lineStyle(2, 0x000000, alpha); // Line width of 2 and black color
-        g.moveTo(50, y); // Start at x: 50, y: y
-        g.lineTo(dimensions.width - 50, y); // Draw line to x: (width - 50), y: y
+        g.lineStyle(2, 0x000000, alpha);
+        g.moveTo(50, y);
+        g.lineTo(dimensions.width - 50, y);
     }, [dimensions.width]);
 
     const drawVerticalLine = useCallback((g: PixiGraphics, x: number) => {
-        g.lineStyle(2, 0x000000, 1); // Line width of 2 and black color
-        g.moveTo(x, 100); // Start at x: x, y: 50
-        g.lineTo(x, dimensions.height - 50); // Draw line to x: x, y: (height - 50)
+        g.lineStyle(2, 0x000000, 1);
+        g.moveTo(x, 100);
+        g.lineTo(x, dimensions.height - 50);
     }, [dimensions.height]);
 
     const drawEllipse = useCallback((g: PixiGraphics, x: number, y: number) => {
-        g.lineStyle(3, 0x000000, 1); // Line width of 3 and black color
-        g.drawEllipse(x, y, 40, 22); // Draw ellipse with width 40 and height 22
+        g.lineStyle(3, 0x000000, 1);
+        g.drawEllipse(x, y, 40, 22);
         g.endFill();
     }, []);
 
@@ -111,19 +127,18 @@ const App = () => {
         topEllipses.forEach(ellipse => drawEllipse(g, ellipse.x, ellipse.y));
         bottomEllipses.forEach(ellipse => drawEllipse(g, ellipse.x, ellipse.y));
 
-        drawHorizontalLine(g, 100); // First line at y: 100
-        drawHorizontalLine(g, 150); // Second line at y: 150
-        drawHorizontalLine(g, 200); // Third line at y: 200
-        drawHorizontalLine(g, 250); // Fourth line at y: 250
-        drawHorizontalLine(g, 300); // Fifth line at y: 300
-        drawHorizontalLine(g, 350, 0.2); // Sixth line at y: 400
-        drawHorizontalLine(g, 400); // Sixth line at y: 400
-        drawHorizontalLine(g, 450); // Seventh line at y: 450
-        drawHorizontalLine(g, 500); // Eighth line at y: 500
-        drawHorizontalLine(g, 550); // Ninth line at y: 550
-        drawHorizontalLine(g, 600); // Tenth line at y: 600
+        drawHorizontalLine(g, 100);
+        drawHorizontalLine(g, 150);
+        drawHorizontalLine(g, 200);
+        drawHorizontalLine(g, 250);
+        drawHorizontalLine(g, 300);
+        drawHorizontalLine(g, 350, 0.2);
+        drawHorizontalLine(g, 400);
+        drawHorizontalLine(g, 450);
+        drawHorizontalLine(g, 500);
+        drawHorizontalLine(g, 550);
+        drawHorizontalLine(g, 600);
 
-        // Draw two vertical lines at the center
         const offset = 100;
         drawVerticalLine(g, dimensions.width / 2 - offset);
         drawVerticalLine(g, dimensions.width / 2 + offset);
